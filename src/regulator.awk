@@ -1,4 +1,4 @@
-#!/usr/bin/awk -f
+#!/usr/bin/env -S awk -f
 
 BEGIN	{
     if (length(opt) == 0) {
@@ -11,5 +11,5 @@ BEGIN	{
     if (substr($0, length($0)) == ",") {
         $0 = substr($0, 1, length($0)-1)
     }
-    print(opt"+=(\""$0"\")")
+    print("export "opt"+=(\""$0"\")")
 }

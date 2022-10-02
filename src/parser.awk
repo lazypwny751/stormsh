@@ -1,4 +1,4 @@
-#!/usr/bin/awk -f
+#!/usr/bin/env -S awk -f
 
 BEGIN	{
     if (length(opt) == 0) {
@@ -7,7 +7,7 @@ BEGIN	{
     }
 }
 
-$1 == opt {
+($1 == opt":") {
     $1 = ""
     gsub(/^[ \t]+/, "")
     if (substr($0, length($0)) != ",") {

@@ -1,6 +1,0 @@
-use: command, test, file, entity
-null text
-test file of the project
-command: test, deneme bir iki
-test: 1, 2 3 4, one two
-command: hede hödö, foo, foss,
