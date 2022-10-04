@@ -2,6 +2,8 @@
 
 # reserve: file
 
+status="true"
+
 for check in "${file[@]}" ; do
     if ! [[ -f "${check}" ]] ; then
         echo -e "\tfile: '${check}' does not exist!"

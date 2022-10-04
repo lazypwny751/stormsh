@@ -16,8 +16,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Don't worry, this shit code release will be changed as soon as possible time..
+
 # Define variables:
-export root="" status="true" prefix="/usr" version="1.0.0" ROOT="" CWD="${PWD}" DO="build" FILE="Stormfile" WORKSPACE="StormshWorkSpace"
+export root="" status="true" prefix="/usr" version="1.0.0" ROOT="" CWD="${PWD}" DO="build" RUN="true" FILE="Stormfile" WORKSPACE="StormshWorkSpace"
 export LIBDIR="${root}${prefix}/local/lib/stormsh/${version%.*}" SRCDIR="${root}${prefix}/share/stormsh"
 export reqcmd=(
     "awk"
@@ -29,7 +31,6 @@ export reqent=(
     "${SRCDIR}/lib_parser.awk"
     "${SRCDIR}/regulator.awk"
     "${SRCDIR}/parser.awk"
-    "${LIBDIR}/command.sh"
 )
 
 # Define functions:
@@ -37,6 +38,10 @@ stormsh:awk:parse() {
     local status="true" file="" option="" DO="parse"
     while [[ "${#}" -gt 0 ]] ; do
         case "${1}" in
+            --[nN][oO][tT]-[rR][uU][nN]|-[nN][rR])
+                shift
+                export RUN="false"
+            ;;
             --file|-f)
                 shift
                 if [[ -n "${1}" ]] ; then
@@ -138,6 +143,10 @@ fi
 # Parse parameters:
 while [[ "${#}" -gt 0 ]] ; do
     case "${1}" in
+        --[nN][oO][tT]-[rR][uU][nN]|-[nN][rR])
+            shift
+            export RUN="false"
+        ;;
         --[fF][iI][lL][eE]|-[fF])
             shift
             if [[ -n "${1}" ]] ; then
@@ -162,6 +171,7 @@ done
 # Execution the option:
 case "${DO}" in
     build)
+        unset reqcmd reqent version prefix root
         export REALFILE="$(stormsh:realpath "${FILE}")"
 
         if [[ -f "${REALFILE}" ]] ; then
@@ -214,9 +224,9 @@ case "${DO}" in
                 fi
 
                 if [[ -n "${reserve[@]}" ]] ; then
-                    echo -e "\nreadonly ${reserve[@]}\n\ncd \${CWD}\n" >> "${REALFILE%/*}/${FILE}.sh"
+                    echo -e "\nreadonly ${reserve[@]}\n\ncd \"\${CWD}\"\n" >> "${REALFILE%/*}/${FILE}.sh"
                 else
-                    echo -e "cd \${CWD}\n" >> "${REALFILE%/*}/${FILE}.sh"
+                    echo -e "cd \"\${CWD}\"\n" >> "${REALFILE%/*}/${FILE}.sh"
                 fi
 
                 if [[ -f "function" ]] ; then
@@ -227,16 +237,31 @@ case "${DO}" in
                     chmod u+x "${REALFILE%/*}/${FILE}.sh"
                 fi
             ) || {
-                echo -e "\t${0##*/}: couldn't parsing the file '${REALFILE##*/}' in '${WORKSPACE}'."
+                echo -e "\t${0##*/}: ${REALFILE##*/}: the sub process turned with non zero exit status."
                 exit 1
             }
+
+            if ${RUN} ; then
+                bash "${REALFILE%/*}/${FILE}.sh"
+            fi
         else
             echo -e "\t${0##*/}: the file '${REALFILE##*/}' is does not exist."
             exit 1
         fi
     ;;
     help)
-        echo "this helper text"
+        echo -e "There is 4 arguments for ${0##*/}:
+\tnot-run, nr:
+\t\tafter the creatation of temp files do not run the result script.
+
+\tfile, f:
+\t\tchange the default value of ${0##*/}'s configuration file, the default file name is ${FILE}.
+
+\thelp, h:
+\t\tit shows this helper text screen.
+
+\tversion, v:
+\t\tit shows current version ${version} (major.minor.patch) of ${0##*/}."
     ;;
     version)
         echo "${version}"
