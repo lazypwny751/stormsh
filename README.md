@@ -3,7 +3,7 @@ Simple configure tool (like ninja build, cmake and meson) for shell scripts writ
 
 ## INSTALLATION
 ```bash
-git clone "https://github.com/lazypwny751/stormsh.git" && cd stormsh
+git clone "https://github.com/lazypwny751/stormsh.git" && cd "stormsh"
 sudo make install
 ```
 ## USAGE
