@@ -16,67 +16,128 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Don't worry, this shit code release will be changed as soon as possible time..
+# Definitions:
+set -e
+shopt -s expand_aliases
 
-# Define variables:
-export root="" status="true" prefix="/usr" version="1.0.0" ROOT="" CWD="${PWD}" DO="build" RUN="true" FILE="Stormfile" WORKSPACE="StormshWorkSpace"
-export LIBDIR="${root}${prefix}/local/lib/stormsh/${version%.*}" SRCDIR="${root}${prefix}/share/stormsh"
-export reqcmd=(
-    "awk"
+# status, run, version, ROOT, PREFIX, DO, FILE, WORKSPACE, CWD, SRCDIR, STORMSH_LIBDIR
+export status="true" run="true" version="2.0.0"
+export ROOT="" PREFIX="/usr" DO="build" FILE="Stormfile" WORKSPACE="Stormdir"
+export CWD="${PWD}" SRCDIR="${ROOT}${PREFIX}/share/stormsh"
+if ! [[ -n "${STORMSH_LIBDIR}" ]] ; then
+    export STORMSH_LIBDIR="${ROOT}${PREFIX}/local/lib/stormsh/${version%.*}:${ROOT}${PREFIX}/local/lib/bash-5.1.16"
+fi
+
+export STORMSH_REQUIRE=(
+    "command:rm"
+    "command:awk"
+    "command:cat"
+    "command:mkdir"
+    "entity:${SRCDIR}/lexer.awk"
+    "entity:${SRCDIR}/parser.awk"
 )
 
-export reqent=(
-    "${SRCDIR}/repetitious.awk"
-    "${SRCDIR}/lib_source.awk"
-    "${SRCDIR}/lib_parser.awk"
-    "${SRCDIR}/regulator.awk"
-    "${SRCDIR}/parser.awk"
-)
+# Regular Colors
+reset='\033[0m'           # Text Reset
+black='\033[0;30m'        # Black
+red='\033[0;31m'          # Red
+green='\033[0;32m'        # Green
+yellow='\033[0;33m'       # Yellow
+blue='\033[0;34m'         # Blue
+purple='\033[0;35m'       # Purple
+cyan='\033[0;36m'         # Cyan
+white='\033[0;37m'        # White
 
-# Define functions:
-stormsh:awk:parse() {
-    local status="true" file="" option="" DO="parse"
+# Bold
+Bblack='\033[1;30m'       # Black
+Bred='\033[1;31m'         # Red
+Bgreen='\033[1;32m'       # Green
+Byellow='\033[1;33m'      # Yellow
+Bblue='\033[1;34m'        # Blue
+Bpurple='\033[1;35m'      # Purple
+Bcyan='\033[1;36m'        # Cyan
+Bwhite='\033[1;37m'       # White
+
+## Functions:
+stormsh:requires() {
+    # Requirement Resolver.
+    local status="true"
+    if [[ -n "${STORMSH_REQUIRE}" ]] ; then
+        local i=""
+        for i in "${STORMSH_REQUIRE[@]}" ; do
+            case "${i%:*}" in
+                command|[cC])
+                    if ! command -v "${i#*:}" &> /dev/null ; then
+                        echo "'${i#*:}' not found."
+                        local status="false"
+                    fi
+                ;;
+                entity|[eE])
+                    if ! [[ -e "${i#*:}" ]] ; then
+                        echo "'${i#*:}' doesn't exist."
+                        local status="false"
+                    fi
+                ;;
+                *)
+                    echo "'${i#*:}' in unknown category: '${i%:*}'?."
+                    local status="false"
+                ;;
+            esac
+        done
+    else
+        echo "fatal: \${STORMSH_REQUIRE} isn't definied yet, please define the requirements."
+        local status="false"
+    fi
+
+    if ! ${status} ; then
+        return 1
+    fi
+}
+
+stormsh:output() {
+    local OPTARG=() SETMOD="success"
     while [[ "${#}" -gt 0 ]] ; do
         case "${1}" in
-            --[nN][oO][tT]-[rR][uU][nN]|-[nN][rR])
+            --error|-e)
                 shift
-                export RUN="false"
+                local SETMOD="error"
             ;;
-            --file|-f)
+            --success|-s)
                 shift
-                if [[ -n "${1}" ]] ; then
-                    local file="${1}"
-                    shift
-                fi
+                local SETMOD="success"
             ;;
-            --option|-o)
+            --info|-i)
                 shift
-                if [[ -n "${1}" ]] ; then
-                    local option="${1}"
-                    shift
-                fi
+                local SETMOD="info"
+            ;;
+            --warning|-w)
+                shift
+                local SETMOD="warning"
             ;;
             *)
+                local OPTARG+=("${1}")
                 shift
             ;;
         esac
     done
 
-    case "${DO}" in
-        parse)
-            if [[ -n "${option}" && -f "${file}" ]] ; then
-                "${SRCDIR}/parser.awk" -v opt="${option}" "${file}" | "${SRCDIR}/regulator.awk" -v opt="${option}" && {
-                    return 0
-                } || {
-                    return 1
-                }
-            else
-                echo -e "\t${0##*/}: ${FUNCNAME##*:}: please give parameters of these arguments correctly: --file, --option."
-                return 1
-            fi
+    case "${SETMOD}" in
+        error)
+            echo -e "\t${Bred}${BASH_SOURCE[0]##*/}${reset}: ${Bred}error${reset}: ${OPTARG[@]}."
+            return 1
+        ;;
+        success)
+            echo -e "\t${Bgreen}${BASH_SOURCE[0]##*/}${reset}: ${Bgreen}success${reset}: ${OPTARG[@]}."
+        ;;
+        info)
+            echo -e "\t${Bblue}${BASH_SOURCE[0]##*/}${reset}: ${Bblue}info${reset}: ${OPTARG[@]}."
+        ;;
+        warning)
+            echo -e "\t${Byellow}${BASH_SOURCE[0]##*/}${reset}: ${Byellow}warning${reset}: ${OPTARG[@]}."
         ;;
         *)
-            return 1
+            # Ayıp olmasın diye return edelim.
+            return 2
         ;;
     esac
 }
@@ -121,31 +182,31 @@ stormsh:realpath() {
     fi
 }
 
-# Correction for initialize:
-for command in "${reqcmd[@]}" ; do
-    if ! command -v "${command}" &> /dev/null ; then
-        echo -e "\t${0##*/}: command: '${command}' not found!"
-        export status="false"
+stormsh:tmpup() {
+    if [[ -d "${CWD}/${WORKSPACE}" ]] ; then
+        rm -rf "${CWD}/${WORKSPACE}"
     fi
-done
+    mkdir -p "${CWD}/${WORKSPACE}"
+    > "${CWD}/${WORKSPACE}/require"
+    > "${CWD}/${WORKSPACE}/reserve"
+}
 
-for entity in "${reqent[@]}" ; do
-    if ! [[ -e "${entity}" ]] ; then
-        echo -e "\t${0##*/}: file or directory: '${entity}' doesn't exist!"
-        export status="false"
-    fi
-done
+awk:parse() {
+    :
+}
 
-if ! ${status} ; then
-    exit 1
-fi
+# Initialize:
+stormsh:requires
 
 # Parse parameters:
 while [[ "${#}" -gt 0 ]] ; do
     case "${1}" in
-        --[nN][oO][tT]-[rR][uU][nN]|-[nN][rR])
+        --[dD][iI][rR][eE][cC][tT][oO][rR][yY]|-[dD])
             shift
-            export RUN="false"
+            if [[ -n "${1}" ]] ; then
+                export CWD="${1}"
+                shift
+            fi
         ;;
         --[fF][iI][lL][eE]|-[fF])
             shift
@@ -168,105 +229,31 @@ while [[ "${#}" -gt 0 ]] ; do
     esac
 done
 
-# Execution the option:
 case "${DO}" in
     build)
-        unset reqcmd reqent version prefix root
-        export REALFILE="$(stormsh:realpath "${FILE}")"
-
-        if [[ -f "${REALFILE}" ]] ; then
-            if [[ -d "${WORKSPACE}" ]] ; then 
-                rm -rf "${WORKSPACE}"
-            fi
-            mkdir -p "${WORKSPACE}" && (
-                cd "${WORKSPACE}"
-                echo "export use=()" > module.sh 
-                stormsh:awk:parse -o "use" -f "${REALFILE}" >> module.sh
-                echo "readonly use" >> module.sh
-                source module.sh
-                echo "export reserve=()" > reserve.sh
-                if [[ -n "${use[@]}" ]] ; then
-                    for i in "${use[@]}" ; do
-                        if [[ -f "${LIBDIR}/${i}.sh" ]] ; then
-                            export libfile="${LIBDIR}/${i}.sh"
-                        elif [[ -f "${LIBDIR}/${i}" ]] ; then
-                            export libfile="${LIBDIR}/${i}"
-                        else
-                            export libfile=""
-                        fi
-
-                        if [[ -f "${libfile}" ]] ; then
-                            "${SRCDIR}/lib_parser.awk" "${libfile}" | "${SRCDIR}/repetitious.awk" >> reserve
-                            "${SRCDIR}/lib_source.awk" "${libfile}" >> function
-                        else
-                            echo -e "\t${0##*/}: the library '${i}' not found."
-                            export status="false"
-                        fi
-                    done
-                fi
-                
-                if ! ${status} ; then
-                    exit 1
-                fi
-
-                if [[ -f "reserve" ]] ; then
-                    "${SRCDIR}/regulator.awk" -v opt="reserve" "reserve" >> reserve.sh
-                    echo "readonly reserve" >> reserve.sh
-                    source reserve.sh
-                fi
-                # there is no bug, variables can not obtain white spaces it's must be just another variable.
-                echo -e "#!/bin/bash\n\n# This script was generated by ${0##*/} under GPL license\n# Copyright by lazypwny751 - 03.10.2022.\n\nexport CWD=\"\${PWD}\"\n\nset -e\n" > "${REALFILE%/*}/${FILE}.sh"
-
-                if [[ -n "${reserve[@]}" ]] ; then
-                    for var in "${reserve[@]}" ; do
-                        stormsh:awk:parse -o "${var}" -f "${REALFILE}" >> "${REALFILE%/*}/${FILE}.sh"
-                    done
-                fi
-
-                if [[ -n "${reserve[@]}" ]] ; then
-                    echo -e "\nreadonly ${reserve[@]}\n\ncd \"\${CWD}\"\n" >> "${REALFILE%/*}/${FILE}.sh"
-                else
-                    echo -e "cd \"\${CWD}\"\n" >> "${REALFILE%/*}/${FILE}.sh"
-                fi
-
-                if [[ -f "function" ]] ; then
-                    awk "{print(\$0)}" ./"function" >> "${REALFILE%/*}/${FILE}.sh"
-                fi
-
-                if command -v "chmod" &> /dev/null ; then
-                    chmod u+x "${REALFILE%/*}/${FILE}.sh"
-                fi
-            ) || {
-                echo -e "\t${0##*/}: ${REALFILE##*/}: the sub process turned with non zero exit status."
-                exit 1
-            }
-
-            if ${RUN} ; then
-                bash "${REALFILE%/*}/${FILE}.sh"
+        unset version status STORMSH_REQUIRE DO
+        if [[ -d "${CWD}" ]] ; then
+            if [[ -f "${FILE}" ]] ; then
+                stormsh:tmpup
+                awk:parse ""
+            else
+                stormsh:output -e "The rule file '${Byellow}${FILE}${reset}' not found!"
             fi
         else
-            echo -e "\t${0##*/}: the file '${REALFILE##*/}' is does not exist."
-            exit 1
+            stormsh:output -e "Current Work Directory '${Byellow}${CWD}${reset}' doesn't exist!"
         fi
     ;;
+    path)
+        echo "${STORMSH_LIBDIR}"
+    ;;
     help)
-        echo -e "There is 4 arguments for ${0##*/}:
-\tnot-run, nr:
-\t\tafter the creatation of temp files do not run the result script.
-
-\tfile, f:
-\t\tchange the default value of ${0##*/}'s configuration file, the default file name is ${FILE}.
-
-\thelp, h:
-\t\tit shows this helper text screen.
-
-\tversion, v:
-\t\tit shows current version ${version} (major.minor.patch) of ${0##*/}."
+        echo -e "This helper text"
     ;;
     version)
         echo "${version}"
     ;;
     *)
-        echo -e "\t${0##*/}: there is no option called '${DO}', so will doing nothing."
+        echo -e "\t${0##*/}: '${DO}' is never definied yet!"
+        exit 1
     ;;
 esac
